@@ -1,0 +1,184 @@
+<template>
+  <div>
+    <el-dialog
+      :title="info.isadd ? '规格添加' : '规格编辑'"
+      :visible.sync="info.isshow"
+    >
+      {{ form }}
+
+      <!-- {{indexSec}} -->
+      <el-form :model="form">
+        <el-form-item label="规格名称" :label-width="formLabelWidth">
+          <el-input v-model="form.specsname" autocomplete="off"></el-input>
+        </el-form-item>
+
+        <el-form-item
+          label="规格属性"
+          :label-width="formLabelWidth"
+          v-for="(item, index) in attrArr"
+          :key="index"
+        >
+          <div class="box">
+            <el-input v-model="item.value" autocomplete="off" ></el-input>
+            <el-button type="primary" v-if="index == 0" @click="addAttr" 
+              >新增规格属性</el-button
+            >
+            <el-button type="danger" v-else @click="delAttr(index)" 
+              >删除</el-button
+            >
+          </div>
+        </el-form-item>
+
+        <!-- 状态 -->
+        <el-form-item label="状态" :label-width="formLabelWidth">
+          <el-switch
+            :label-width="formLabelWidth"
+            v-model="form.status"
+            :active-value="1"
+            :inactive-value="2"
+          >
+          </el-switch>
+        </el-form-item>
+      </el-form>
+      <!-- 按钮 -->
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="changFalse">取 消</el-button>
+        <el-button type="primary" v-if="info.isadd" @click="add"
+          >添加</el-button
+        >
+        <el-button type="primary" v-else @click="edit">修改</el-button>
+      </div>
+    </el-dialog>
+  </div>
+</template>
+<script>
+import { mapGetters, mapActions } from "vuex";
+//导入自定义弹窗
+import { successAlert } from "../../../untils/alert";
+import {
+  reqspecsadd,
+  reqspecsedit,
+  reqspecsinfo,
+} from "../../../request/api.js";
+
+export default {
+  props: ["info"],
+  data() {
+    return {
+      //提交地址
+      form: {
+        specsname: "",
+        attrs: "",
+        status: 1,
+      },
+
+      formLabelWidth: "120px",
+
+      //表单打开默认为true
+      dialogFormVisible: true,
+      //数组控制规格属性
+      attrArr: [
+        {
+          value: "",
+        },
+      ],
+    };
+  },
+  computed: {
+    ...mapGetters({}),
+  },
+  //获取菜单数据
+  mounted() {},
+  methods: {
+    
+    //点击了新增规格属性
+    addAttr() {
+      this.attrArr.push({ value: "" });
+    },
+    //删除了规格属性
+    delAttr(index) {
+      this.attrArr.splice(index, 1);
+    },
+    ...mapActions({
+      //获取分类list
+      reqList: "specs/reqList",
+      //总数
+      reqTotal: "specs/reqTotal",
+    }),
+    //通知父组件将isshow改为false
+    changFalse() {
+      this.$emit("changFalse");
+    },
+    //清空
+    emty() {
+      this.form = {
+        specsname: "",
+        attrs: "",
+        status: 1,
+      };
+      //清空属性数组
+      this.attrArr = [{ value: "" }];
+    },
+    //添加
+    add() {
+      let str = this.attrArr.reduce(
+        (val, item) => (val += item.value + ","),
+        ""
+      );
+      this.form.attrs = str.slice(0, str.length - 1);
+      //发送添加请求
+      reqspecsadd(this.form).then((res) => {
+        if (res.data.code == 200) {
+          //弹出成功
+          successAlert(res.data.msg);
+          //清空表单
+          this.emty();
+          //关闭模板
+          this.changFalse();
+          //请求数据
+          this.reqList();
+          this.reqTotal();
+        }
+      });
+    },
+
+    //获取一条数据
+    getOne(id) {
+      //请求一条数据
+      reqspecsinfo({ id: id }).then((res) => {
+        if (res.data.code == 200) {
+          this.form = res.data.list[0];
+
+          // 属性数组展示规格 [ "S", "M" ] -->[{value:"S"},{value:"M"}]
+          this.attrArr = this.form.attrs.map((item) => ({ value: item }));
+        }
+      });
+    },
+    //修改
+    edit() {
+      this.form.attrs = this.attrArr.map((item) => item.value).join(",");
+      reqspecsedit(this.form).then((res) => {
+        if (res.data.code == 200) {
+          //弹窗
+          successAlert("修改成功");
+          //清空
+          this.emty();
+          //关闭蒙版
+          this.changFalse();
+          //请求数据
+          this.reqList();
+        }
+      });
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+@import "../../../less/index.less";
+.box{
+  display: flex;
+}
+.box .el-input{
+  flex: 1;
+}
+</style>
